@@ -2,7 +2,7 @@
 //Author: Andrew Ilersich
 //Based on dRehmFlight by Nicholas Rehm
 //Project Start: 31/5/2024
-//Last Updated: 31/5/2024
+//Last Updated: 1/12/2024
 //Version: 1.0
 
 //========================================================================================================================//
@@ -58,7 +58,7 @@ const int MODE_1_2_THRES = 1300;
 const int MODE_2_3_THRES = 1700;
 
 // frequency of main loop
-const int LOOP_FREQ = 2000; // Hz
+const int LOOP_FREQ = 400; // Hz
 
 //========================================================================================================================//
 //                                                     DECLARE PINS                                                       //                           
@@ -98,9 +98,24 @@ int ail_pwm_out, elv_pwm_out, thr_pwm_out, rud_pwm_out, aux_pwm_out;
 unsigned long radioChannels[NUM_CHANNELS];
 Servo ail_servo, elv_servo, thr_servo, rud_servo, aux_servo;
 
-//IMU:
-float aX0 = 0, aY0 = 0, aZ0 = 0, gX0 = 0, gY0 = 0, gZ0 = 0;
-float aX, aY, aZ, gX, gY, gZ;
+//Sensors available
+bool MPU6050_avail = false;
+bool QMC5883L_avail = false;
+bool BMP180_avail = false;
+
+//Sensor values:
+float aX0 = 0, aY0 = 0, aZ0 = 0; // in Gs
+float gX0 = 0, gY0 = 0, gZ0 = 0; // in deg/s
+float mX0 = 0, mY0 = 0, mZ0 = 0; // in milliGauss
+float pres0 = 0; // in kPa
+
+float aX = 0, aY = 0, aZ = 0; // in Gs
+float gX = 0, gY = 0, gZ = 0; // in deg/s
+float mX = 0, mY = 0, mZ = 0; // in milliGauss
+float pres = 0; // in kPa
+
+//State
+float roll, pitch, yaw; // in degrees
 
 //Flight status
 bool armedFly = false;
@@ -123,7 +138,16 @@ void setup() {
 
   setupPPM(); //Initialize radio communication
   setupServos(); //Initialize output PWM servos
-  setupIMU(); //Initialize IMU communication
+
+  Wire.begin(); //Initialize I2C
+  enableBypass();
+  checkSensors(); //Check which sensors are available
+
+  if (MPU6050_avail) setupAccelGyro(); //Initialize accel/gyro communication
+  if (QMC5883L_avail) setupMag(); //Initialize magnetometer communication
+  if (BMP180_avail) setupBaro(); //Initialize barometer communication
+
+  initEKF();
   
   delay(5);
   
@@ -146,43 +170,22 @@ void loop() {
   loopBlink(); //Indicate we are in main loop with short blink every 1.5 seconds
 
   //Get vehicle state
-  getAccelGyro(); //Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
-  //getRollPitchYaw(GyroX, GyroY, GyroZ, AccX, AccY, AccZ, dt); //Updates roll, pitch, yaw angle estimates (degrees) not yet implemented
+  if (MPU6050_avail) getAccelGyro(); //Pulls raw gyro, accelerometer data
+  if (QMC5883L_avail) getMag(); //Pulls raw magnetometer data
+  if (BMP180_avail) getBaro(); //Pulls raw barometer data
+  
+  getRollPitch();
 
   updateMode();
   controlByMode();
 
   writeToServos();
 
-  Serial.println("---");
-  Serial.print("Flight mode: "); Serial.println(flight_mode);
-
-  Serial.print("Accel X: "); Serial.print(aX);
-  Serial.print(" | Accel Y: "); Serial.print(aY);
-  Serial.print(" | Accel Z: "); Serial.print(aZ);
-  Serial.print(" | Gyro X: "); Serial.print(gX);
-  Serial.print(" | Gyro Y: "); Serial.print(gY);
-  Serial.print(" | Gyro Z: "); Serial.println(gZ);
-
-  for (int i = 0; i < 6; i++) {
-    Serial.print(" CH");
-    Serial.print(i + 1);
-    Serial.print(" PWM: ");
-    Serial.print(radioChannels[i]);
-  }
-  Serial.println();
-
-  Serial.print(" AIL PWM: "); Serial.print(ail_pwm_out);
-  Serial.print(" ELV PWM: "); Serial.print(elv_pwm_out);
-  Serial.print(" THR PWM: "); Serial.print(thr_pwm_out);
-  Serial.print(" RUD PWM: "); Serial.print(rud_pwm_out);
-  Serial.print(" AUX PWM: "); Serial.println(aux_pwm_out);
+  printStatus();
   
   //Regulate loop rate
   loopRate(LOOP_FREQ); //Do not exceed 2000Hz
 }
-
-
 
 //========================================================================================================================//
 //                                                      FUNCTIONS                                                         //                           
