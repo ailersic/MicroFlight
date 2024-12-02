@@ -1,20 +1,27 @@
+void printAttitude() {
+  Serial.print("Roll:"); Serial.print(roll, 2);
+  Serial.print(",Pitch:"); Serial.print(pitch, 2);
+  Serial.print(",Yaw:"); Serial.print(yaw, 2);
+  Serial.println();
+}
+
 void printStatus() {
   Serial.println("---");
   Serial.print("Flight mode: "); Serial.println(flight_mode);
 
   Serial.print("Accel X: "); Serial.print(aX);
-  Serial.print(" | Accel Y: "); Serial.print(aY);
-  Serial.print(" | Accel Z: "); Serial.println(aZ);
+  Serial.print("\t | Accel Y: "); Serial.print(aY);
+  Serial.print("\t | Accel Z: "); Serial.println(aZ);
   Serial.print("Gyro X: "); Serial.print(gX);
-  Serial.print(" | Gyro Y: "); Serial.print(gY);
-  Serial.print(" | Gyro Z: "); Serial.println(gZ);
+  Serial.print("\t | Gyro Y: "); Serial.print(gY);
+  Serial.print("  \t | Gyro Z: "); Serial.println(gZ);
   Serial.print("Mag X: "); Serial.print(mX);
-  Serial.print(" | Mag Y: "); Serial.print(mY);
-  Serial.print(" | Mag Z: "); Serial.println(mZ);
+  Serial.print("\t | Mag Y: "); Serial.print(mY);
+  Serial.print("  \t | Mag Z: "); Serial.println(mZ);
 
   Serial.print("Roll: "); Serial.print(roll, 2);
-  Serial.print(" | Pitch: "); Serial.print(pitch, 2);
-  Serial.print(" | Yaw: "); Serial.print(yaw, 2);
+  Serial.print("\t | Pitch: "); Serial.print(pitch, 2);
+  Serial.print("  \t | Yaw: "); Serial.print(yaw, 2);
   Serial.println();
 
   for (int i = 0; i < 6; i++) {

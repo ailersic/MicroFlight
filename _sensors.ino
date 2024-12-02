@@ -32,6 +32,7 @@ const float BARO_SCALE = 1.0; // LSB sensitivity for barometer (+/- something kP
 
 void enableBypass() {
   // MPU6050 has an aux I2C port, so we want to enable access via it
+  delay(500);
   Wire.beginTransmission(MPU6050_ADDR);
   Wire.write(0x37);
   Wire.write(0x02);
@@ -88,6 +89,7 @@ void setupAccelGyro() {
   Wire.write(0x00);     // range +/- 250 deg/s
   Wire.endTransmission(true);
 
+  delay(500);
   setAccelGyroRef();
 }
 
@@ -109,10 +111,12 @@ void getAccelGyro() {
   Wire.endTransmission(false);
   Wire.requestFrom(MPU6050_ADDR, 6, true);
 
+  float a = 0.99;
+
   // Convert to float
-  aX = ((int16_t) (Wire.read() << 8 | Wire.read())) / ACCEL_SCALE - aX0;
-  aY = ((int16_t) (Wire.read() << 8 | Wire.read())) / ACCEL_SCALE - aY0;
-  aZ = ((int16_t) (Wire.read() << 8 | Wire.read())) / ACCEL_SCALE - aZ0;
+  aX = a*(((int16_t) (Wire.read() << 8 | Wire.read())) / ACCEL_SCALE - aX0) + (1 - a)*aX;
+  aY = a*(((int16_t) (Wire.read() << 8 | Wire.read())) / ACCEL_SCALE - aY0) + (1 - a)*aY;
+  aZ = a*(((int16_t) (Wire.read() << 8 | Wire.read())) / ACCEL_SCALE - aZ0) + (1 - a)*aZ;
 
   // Read gyroscope data
   Wire.beginTransmission(MPU6050_ADDR);
@@ -121,9 +125,9 @@ void getAccelGyro() {
   Wire.requestFrom(MPU6050_ADDR, 6, true);
 
   // Convert to float
-  gX = ((int16_t) (Wire.read() << 8 | Wire.read())) / GYRO_SCALE - gX0;
-  gY = ((int16_t) (Wire.read() << 8 | Wire.read())) / GYRO_SCALE - gY0;
-  gZ = ((int16_t) (Wire.read() << 8 | Wire.read())) / GYRO_SCALE - gZ0;
+  gX = a*(((int16_t) (Wire.read() << 8 | Wire.read())) / GYRO_SCALE - gX0) + (1 - a)*gX;
+  gY = a*(((int16_t) (Wire.read() << 8 | Wire.read())) / GYRO_SCALE - gY0) + (1 - a)*gY;
+  gZ = a*(((int16_t) (Wire.read() << 8 | Wire.read())) / GYRO_SCALE - gZ0) + (1 - a)*gZ;
 }
 
 //========================================================================================================================//
@@ -133,17 +137,15 @@ void getAccelGyro() {
 void setupMag() {
   Wire.beginTransmission(QMC5883L_ADDR);
   Wire.write(0x09);  // mode register
-  Wire.write(0x01);     // continuous measurement
+  Wire.write(0x0D);     // continuous measurement
   Wire.endTransmission(true);
 
+  delay(500);
   setMagRef();
 }
 
 void setMagRef() {
   getMag();
-  //mX0 = mX;
-  //mY0 = mY;
-  //mZ0 = mZ;
 }
 
 void getMag() {
@@ -154,14 +156,20 @@ void getMag() {
   Wire.requestFrom(QMC5883L_ADDR, 6, true);
 
   // Convert to float
-  if (Wire.available() == 6) {
-    mX = ((int16_t) (Wire.read() | Wire.read() << 8)) / MAG_SCALE - mX0;
-    mY = ((int16_t) (Wire.read() | Wire.read() << 8)) / MAG_SCALE - mY0;
-    mZ = ((int16_t) (Wire.read() | Wire.read() << 8)) / MAG_SCALE - mZ0;
-  }
-  else {
-    Serial.println("broke!");
-  }
+  float raw_mX = ((int16_t) (Wire.read() | Wire.read() << 8)) / MAG_SCALE;
+  float raw_mY = ((int16_t) (Wire.read() | Wire.read() << 8)) / MAG_SCALE;
+  float raw_mZ = ((int16_t) (Wire.read() | Wire.read() << 8)) / MAG_SCALE;
+
+  if (raw_mX > mXul || mXul == 0) mXul = raw_mX; if (raw_mX < mXll || mXll == 0) mXll = raw_mX;
+  if (raw_mY > mYul || mYul == 0) mYul = raw_mY; if (raw_mY < mYll || mYll == 0) mYll = raw_mY;
+  if (raw_mZ > mZul || mZul == 0) mZul = raw_mZ; if (raw_mZ < mZll || mZll == 0) mZll = raw_mZ;
+  
+  float eps = 0.0001;
+  float a = 0.99;
+
+  mX = a*(-1.0 + 2*(raw_mX - mXll) / (mXul - mXll + eps)) + (1 - a)*mX;
+  mY = a*(-1.0 + 2*(raw_mY - mYll) / (mYul - mYll + eps)) + (1 - a)*mY;
+  mZ = a*(-1.0 + 2*(raw_mZ - mZll) / (mZul - mZll + eps)) + (1 - a)*mZ;
 }
 
 //========================================================================================================================//
@@ -174,6 +182,7 @@ void setupBaro() {
   Wire.write(0x1D);     // continuous measurement
   Wire.endTransmission(true);
 
+  delay(500);
   setBaroRef();
 }
 

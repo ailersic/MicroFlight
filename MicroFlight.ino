@@ -58,7 +58,7 @@ const int MODE_1_2_THRES = 1300;
 const int MODE_2_3_THRES = 1700;
 
 // frequency of main loop
-const int LOOP_FREQ = 400; // Hz
+const int LOOP_FREQ = 2000; // Hz
 
 //========================================================================================================================//
 //                                                     DECLARE PINS                                                       //                           
@@ -106,12 +106,14 @@ bool BMP180_avail = false;
 //Sensor values:
 float aX0 = 0, aY0 = 0, aZ0 = 0; // in Gs
 float gX0 = 0, gY0 = 0, gZ0 = 0; // in deg/s
-float mX0 = 0, mY0 = 0, mZ0 = 0; // in milliGauss
+float mXul = 0, mXll = 0;
+float mYul = 0, mYll = 0;
+float mZul = 0, mZll = 0;
 float pres0 = 0; // in kPa
 
 float aX = 0, aY = 0, aZ = 0; // in Gs
 float gX = 0, gY = 0, gZ = 0; // in deg/s
-float mX = 0, mY = 0, mZ = 0; // in milliGauss
+float mX = 0, mY = 0, mZ = 0;
 float pres = 0; // in kPa
 
 //State
@@ -174,14 +176,15 @@ void loop() {
   if (QMC5883L_avail) getMag(); //Pulls raw magnetometer data
   if (BMP180_avail) getBaro(); //Pulls raw barometer data
   
-  getRollPitch();
+  getRollPitchYaw();
 
   updateMode();
   controlByMode();
 
   writeToServos();
 
-  printStatus();
+  printAttitude();
+  //printStatus();
   
   //Regulate loop rate
   loopRate(LOOP_FREQ); //Do not exceed 2000Hz

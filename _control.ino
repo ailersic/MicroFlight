@@ -9,6 +9,11 @@ const int RUD_OFFSET = (int) (2000.0 - (RUD_NORM_ULIM * RUD_SCALE));
 const int AUX_SCALE =  (int) (1000.0 / (AUX_NORM_ULIM - AUX_NORM_LLIM));
 const int AUX_OFFSET = (int) (2000.0 - (AUX_NORM_ULIM * AUX_SCALE));
 
+const float P_AIL = 0.01;
+const float P_ELV = 0.01;
+
+const float MAX_BANK_ANGLE = 45.0;
+const float MAX_PITCH_ANGLE = 45.0;
 
 void controlByMode() {
   switch (flight_mode) {
@@ -47,8 +52,20 @@ void controlManual() {
 }
 
 void controlFlyByWire() {
-  controlManual();
-  // fill this in later
+  float roll_cmd = ((float) radioChannels[AIL_CHANNEL] - AIL_OFFSET) / AIL_SCALE;
+  float roll_err = MAX_BANK_ANGLE*roll_cmd - roll;
+  ail_norm_out = P_AIL * roll_err;
+
+  float pitch_cmd = ((float) radioChannels[ELV_CHANNEL] - ELV_OFFSET) / ELV_SCALE;
+  float pitch_err = MAX_PITCH_ANGLE*pitch_cmd - pitch;
+  elv_norm_out = P_ELV * pitch_err;
+
+  clampAllNorm();
+  normToPWM();
+
+  thr_pwm_out = radioChannels[THR_CHANNEL];
+  rud_pwm_out = radioChannels[RUD_CHANNEL];
+  aux_pwm_out = radioChannels[AUX_CHANNEL];
 }
 
 void normToPWM() {
@@ -59,7 +76,7 @@ void normToPWM() {
   aux_pwm_out = (int) (aux_norm_out * AUX_SCALE + AUX_OFFSET);
 }
 
-void clamp_all_norm() {
+void clampAllNorm() {
   clamp(ail_norm_out, AIL_NORM_ULIM, AIL_NORM_LLIM);
   clamp(elv_norm_out, ELV_NORM_ULIM, ELV_NORM_LLIM);
   clamp(thr_norm_out, THR_NORM_ULIM, THR_NORM_LLIM);
